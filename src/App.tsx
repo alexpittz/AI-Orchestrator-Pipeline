@@ -36,7 +36,7 @@ export interface TestBenchmark {
 
 export interface ValidationError {
   stage: string;
-  type: 'structural' | 'field' | 'consistency';
+  type: 'structural' | 'field' | 'consistency'; 
   field: string;
   message: string;
   severity: 'error' | 'warning' | 'info';
@@ -271,7 +271,6 @@ const INTEGRATION_REGISTRY: Record<string, IntegrationService> = {
   }
 };
 
-// The 12 classic prompt benchmarks requested in the assignment (7 standard, 5 edge cases)
 const TEST_BENCHMARKS: TestBenchmark[] = [
   {
     title: "1. Real Estate CRM",
@@ -323,9 +322,6 @@ const TEST_BENCHMARKS: TestBenchmark[] = [
   }
 ];
 
-/**
- * Validation Engine returning structured validation error reports without throwing.
- */
 const runValidator = {
   validateStage1: (intent: IntentPayload | null, isVague: boolean): { isValid: boolean; errors: ValidationError[] } => {
     const errors: ValidationError[] = [];
@@ -398,7 +394,6 @@ const runValidator = {
         errors.push({ stage: 'Stage 2', type: 'field', field: 'tableName', message: `${pathPrefix}: tableName must be snake_case`, severity: 'error' });
       }
 
-      // tenantId validation
       const hasTenantId = entity.fields?.some(f => f.name === 'tenantId');
       if (!hasTenantId) {
         errors.push({ 
@@ -410,7 +405,6 @@ const runValidator = {
         });
       }
 
-      // Fields Validation
       if (!Array.isArray(entity.fields)) {
         errors.push({ stage: 'Stage 2', type: 'structural', field: 'fields', message: `${pathPrefix}: Fields must be an array`, severity: 'error' });
       } else {
@@ -421,7 +415,6 @@ const runValidator = {
         });
       }
 
-      // Relations & Bidirectional graph symmetry validation
       if (entity.relations && Array.isArray(entity.relations)) {
         entity.relations.forEach((rel, rIdx) => {
           const relPath = `${pathPrefix}.relations[${rIdx}]`;
@@ -435,7 +428,6 @@ const runValidator = {
               severity: 'error' 
             });
           } else {
-            // Bidirectional check
             const targetEntity = schema.find(e => e.name === rel.target);
             const reciprocalRel = targetEntity?.relations?.find(tr => tr.target === entity.name);
             if (!reciprocalRel) {
@@ -467,7 +459,6 @@ const runValidator = {
 
     const definedEntities = Array.isArray(schema) ? schema.map(e => e.name) : [];
 
-    // Pages validation
     if (!Array.isArray(spec.pages)) {
       errors.push({ stage: 'Stage 3', type: 'structural', field: 'pages', message: 'pages must be an array', severity: 'error' });
     } else {
@@ -484,7 +475,6 @@ const runValidator = {
       });
     }
 
-    // Page-API Consistency checks: every page must have a corresponding API endpoint route
     if (spec.pages && spec.apiEndpoints) {
       spec.pages.forEach(page => {
         const hasEndpoint = spec.apiEndpoints.some(api => 
@@ -503,13 +493,11 @@ const runValidator = {
       });
     }
 
-    // Roles and Auth Definitions validation
     const definedRoles = spec.authRules ? Object.keys(spec.authRules) : [];
     if (definedRoles.length === 0) {
       errors.push({ stage: 'Stage 3', type: 'field', field: 'authRules', message: 'No authentication roles declared', severity: 'error' });
     }
 
-    // Integration hooks & triggers checks against active Registry
     if (Array.isArray(spec.integrationHooks)) {
       spec.integrationHooks.forEach((hook, idx) => {
         const matched = Object.keys(INTEGRATION_REGISTRY).some(reg => reg.toLowerCase() === hook.integration?.toLowerCase());
@@ -525,7 +513,6 @@ const runValidator = {
       });
     }
 
-    // Workflow Stubs Validation
     if (Array.isArray(spec.workflowStubs)) {
       spec.workflowStubs.forEach((stub, idx) => {
         const pathPrefix = `workflowStubs[${idx}] (${stub.name || 'unnamed'})`;
@@ -548,23 +535,16 @@ const runValidator = {
   }
 };
 
-/**
- * Helper function to normalize various stage inputs (e.g., 'Stage 2' or 2 -> 2)
- */
 const normalizeStage = (stage: string | number): number => {
   if (typeof stage === 'number') return stage;
   const match = String(stage).match(/\d+/);
   return match ? parseInt(match[0], 10) : 1;
 };
 
-/**
- * Repair Engine performing automatic healing across three strategic tiers.
- */
 const repairEngine = {
   attemptStructuralRepair: (rawText: string): { success: boolean; data: any; logs: string[] } => {
     let repairedText = rawText.trim();
     
-    // Clean code fences if present
     if (repairedText.startsWith('```')) {
       repairedText = repairedText.replace(/^```[a-zA-Z]*\n/, '').replace(/\n```$/, '');
     }
@@ -572,7 +552,6 @@ const repairEngine = {
     try {
       return { success: true, data: JSON.parse(repairedText), logs: ["Clean JSON parsing succeeded"] };
     } catch (e) {
-      // Automatic brackets count alignment
       const openBracketsCount = (repairedText.match(/\{/g) || []).length;
       const closeBracketsCount = (repairedText.match(/\}/g) || []).length;
       const openSquaresCount = (repairedText.match(/\[/g) || []).length;
@@ -602,7 +581,7 @@ const repairEngine = {
 
   attemptFieldRepair: (stage: string | number, currentArtifact: any, errors: ValidationError[]): { updated: any; logs: string[] } => {
     const logs: string[] = [];
-    const updated = JSON.parse(JSON.stringify(currentArtifact)); // Deep copy
+    const updated = JSON.parse(JSON.stringify(currentArtifact));
     const stageNum = normalizeStage(stage);
 
     errors.forEach(err => {
@@ -618,7 +597,6 @@ const repairEngine = {
         }
 
         if (stageNum === 2) {
-          // If fields are missing tenantId, dynamically inject
           if (err.field === 'fields' && Array.isArray(updated)) {
             updated.forEach(entity => {
               const hasTenant = entity.fields?.some((f: any) => f.name === 'tenantId');
@@ -653,7 +631,6 @@ const repairEngine = {
         logs.push(`[Consistency Repair] Aligning relational integrity: "${err.message}"`);
 
         if (stageNum === 2) {
-          // Relational symmetry repair
           if (err.field === 'bidirectional') {
             const match = err.message.match(/Entity:?\s*"?([A-Za-z0-9_]+)"?.*?inverse relation pointing back to\s*"?([A-Za-z0-9_]+)"?/);
             const sourceEntityName = match ? match[2] : null;
@@ -674,7 +651,6 @@ const repairEngine = {
             }
           }
           
-          // Generate non-existent target entities
           if (err.field === 'target') {
             const missingTarget = err.message.match(/Target entity "([^"]+)"/)?.[1];
             if (missingTarget && !updated.some((e: any) => e.name === missingTarget)) {
@@ -693,7 +669,6 @@ const repairEngine = {
         }
 
         if (stageNum === 3) {
-          // Orphan page bounds repair
           if (err.field.includes('boundEntity')) {
             const missingEntity = err.message.match(/non-existent DataSchema entity:\s*"([^"]+)"/)?.[1];
             if (missingEntity) {
@@ -707,7 +682,6 @@ const repairEngine = {
             }
           }
 
-          // Unregistered integration override in stubs or hooks
           if (err.field.includes('integrationHooks') || err.field.includes('workflowStubs')) {
             const index = parseInt(err.field.match(/\d+/)?.[0] || '0');
             if (updated.integrationHooks && updated.integrationHooks[index]) {
@@ -727,10 +701,6 @@ const repairEngine = {
   }
 };
 
-/**
- * Dynamic content generator responding intelligently to inputs,
- * DB Dialects, and Architecture Target parameters.
- */
 const runSimulationGeneration = async (
   promptText: string,
   stage: number,
@@ -741,27 +711,21 @@ const runSimulationGeneration = async (
   const words = promptText.trim().split(/\s+/).filter(Boolean);
   const isVague = words.length < 10;
 
-  // Derive target configuration modifications
   const dbSuffix = configParams.dialect === 'MongoDB' ? '_collection' : '_table';
   const idType = configParams.dialect === 'MongoDB' ? 'ObjectId' : 'string';
   const idName = configParams.dialect === 'MongoDB' ? '_id' : 'id';
 
-  // ==========================================
-  // --- MOCK NLP EXTRACTION ENGINE ---
-  // ==========================================
   const cleanPrompt = promptText.toLowerCase().replace(/[^\w\s]/g, '');
   const rawWords = cleanPrompt.split(/\s+/).filter(Boolean);
 
-  // 1. Dynamic Integrations Detection
   let targetIntegrations: string[] = [];
   if (cleanPrompt.includes("slack")) targetIntegrations.push("slack");
   if (cleanPrompt.includes("whatsapp")) targetIntegrations.push("whatsapp");
   if (cleanPrompt.includes("gmail") || cleanPrompt.includes("email")) targetIntegrations.push("gmail");
   if (cleanPrompt.includes("stripe") || cleanPrompt.includes("payment") || cleanPrompt.includes("charge")) targetIntegrations.push("stripe");
   if (cleanPrompt.includes("jira") || cleanPrompt.includes("ticket") || cleanPrompt.includes("task")) targetIntegrations.push("jira");
-  if (targetIntegrations.length === 0) targetIntegrations.push("slack"); // Default fallback integration
+  if (targetIntegrations.length === 0) targetIntegrations.push("slack");
 
-  // 2. Dynamic App Type
   let type = "custom";
   if (cleanPrompt.includes("crm") || cleanPrompt.includes("customer") || cleanPrompt.includes("lead")) type = "crm";
   else if (cleanPrompt.includes("task") || cleanPrompt.includes("project")) type = "project_management";
@@ -769,7 +733,6 @@ const runSimulationGeneration = async (
   else if (cleanPrompt.includes("hr") || cleanPrompt.includes("employee")) type = "hr_tool";
   else if (cleanPrompt.includes("ecommerce") || cleanPrompt.includes("store") || cleanPrompt.includes("order")) type = "ecommerce";
 
-  // 3. Dynamic Entity Extraction (filtering common stop words)
   const stopWords = ['build','create','make','app','system','platform','for','with','the','and','a','an','is','to','in','on','of','by','users','user','when','gets','sees','via','also','but','some','like','something', 'that', 'this', 'then'];
   const potentialEntities = rawWords.filter(w => w.length > 3 && !stopWords.includes(w));
   
@@ -777,16 +740,13 @@ const runSimulationGeneration = async (
   if (dynamicEntities.length === 0) dynamicEntities = ["Record", "Item"];
   if (!dynamicEntities.includes("User") && !dynamicEntities.includes("Account")) dynamicEntities.unshift("User");
 
-  // 4. Dynamic Name Generation
   let name = `${dynamicEntities[1] || 'Core'}${dynamicEntities[2] || 'Cloud'}Platform`;
 
-  // 5. Dynamic Feature Parsing (Splitting prompt by sentences/clauses)
   const sentences = promptText.split(/[.?!;]/).map(s => s.trim()).filter(s => s.length > 5);
   const dynamicFeatures = sentences.length > 0 
     ? sentences.map(s => `Requirement: ${s.charAt(0).toUpperCase() + s.slice(1)}`)
     : ["Dynamic visual list workspace", "Third-party connector triggers"];
 
-  // Handle crash-safes & edge case ambiguities
   if (isVague) {
     name = "GracefulFallbackApp";
     type = "custom";
@@ -809,7 +769,6 @@ const runSimulationGeneration = async (
     };
 
     if (configParams.faultLevel === 'severe') {
-      // Purposefully break types to force healer trigger
       rawOutput.appType = "unsupported_legacy_system_value";
       delete rawOutput.features;
     }
@@ -830,7 +789,6 @@ const runSimulationGeneration = async (
         { name: "createdAt", type: "datetime", nullable: true, isRelation: false, isPrimary: false, isUnique: false }
       ];
 
-      // Inject tenantId unless overridden by severe stress tests
       if (configParams.faultLevel !== 'severe') {
         fields.unshift({ name: "tenantId", type: "string", nullable: false, isRelation: false, isPrimary: false, isUnique: false });
       }
@@ -839,7 +797,6 @@ const runSimulationGeneration = async (
         fields.push({ name: "assigned_user_id", type: "string", nullable: true, isRelation: true, isPrimary: false, isUnique: false });
       }
 
-      // Dynamically map hasMany to all discovered sub-entities
       const relations: any[] = [];
       if (isPrimaryUser) {
         baseEntities.slice(1).forEach(targetName => {
@@ -847,7 +804,6 @@ const runSimulationGeneration = async (
         });
       }
 
-      // If relational fault injected, do NOT output inverse back to source
       if (!isPrimaryUser && configParams.faultLevel !== 'relational') {
         relations.push({
           type: "belongsTo",
@@ -875,7 +831,6 @@ const runSimulationGeneration = async (
     const primary = entityNames[0] || "User";
     const requestedIntegrations = intent.integrations_requested || ["slack"];
 
-    // Dynamic Workflow Stubs Mapping Builder (Generates 1 robust workflowStub per detected integration)
     const workflowStubs = requestedIntegrations.map(integrationId => {
       const normalizedId = integrationId.toLowerCase();
       
@@ -967,7 +922,6 @@ const runSimulationGeneration = async (
         };
       }
 
-      // Default fallback stub
       return {
         name: `Automated ${normalizedId} action sync`,
         trigger: { entity: primary, event: "created" },
@@ -977,7 +931,6 @@ const runSimulationGeneration = async (
       };
     });
 
-    // Dynamically build pages for ALL extracted entities
     const dynamicPages = entityNames.map(ent => ({
       name: `${ent} Workspace`,
       route: ent.toLowerCase() + "s",
@@ -987,7 +940,6 @@ const runSimulationGeneration = async (
     }));
     dynamicPages.push({ name: `System Management Analytics`, route: "dashboard", layout: "dashboard", boundEntity: primary, components: ["chart", "card"] });
 
-    // Dynamically build endpoints for ALL extracted entities
     const dynamicEndpoints = entityNames.map(ent => ({
       path: `/api/v1/${ent.toLowerCase()}s`,
       method: "GET",
@@ -1018,23 +970,122 @@ const runSimulationGeneration = async (
   return "{}";
 };
 
+// ============================================================================
+// --- SUB-COMPONENT: BOOT SCREEN ---
+// ============================================================================
+export const BootScreen = ({ onComplete }: { onComplete: () => void }) => {
+  const [bootLogs, setBootLogs] = useState<{id: number, time: string, text: React.ReactNode}[]>([]);
+
+  useEffect(() => {
+    const sequence = [
+      { text: "INCOMING HTTP REQUEST DETECTED ...", delay: 600 },
+      { text: "SERVICE WAKING UP ...", delay: 800 },
+      { type: 'ascii', delay: 400 },
+      { text: "ALLOCATING COMPUTE RESOURCES ...", delay: 1000 },
+      { text: "PREPARING INSTANCE FOR INITIALIZATION ...", delay: 600 },
+      { text: "STARTING THE INSTANCE ...", delay: 800 },
+      { text: "ENVIRONMENT VARIABLES INJECTED ...", delay: 600 },
+      { text: "FINALIZING STARTUP ...", delay: 500 },
+      { text: "OPTIMIZING DEPLOYMENT ...", delay: 600 },
+      { text: "STEADY HANDS. CLEAN LOGS. YOUR APP IS ALMOST LIVE ...", delay: 1500 }
+    ];
+
+    let currentIndex = 0;
+    let isMounted = true;
+
+    const processNextLog = () => {
+      if (!isMounted) return;
+      if (currentIndex >= sequence.length) {
+        setTimeout(() => { if (isMounted) onComplete(); }, 1000);
+        return;
+      }
+
+      const step = sequence[currentIndex];
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+
+      setTimeout(() => {
+        if (!isMounted) return;
+        
+        let content: React.ReactNode = step.text;
+        
+        if (step.type === 'ascii') {
+          content = (
+            <div className="my-6 w-full max-w-2xl">
+              <pre className="text-indigo-400 font-mono text-xs sm:text-sm leading-tight inline-block border-[1.5px] border-neutral-700 border-dashed p-4 rounded bg-neutral-900/30 overflow-x-hidden">
+{` \\\\    // ||==== ||     ====  ====  ||\\  //|| ||====
+  \\\\  //  ||===  ||    ||    ||  || || \\// || ||===
+   \\\\//   ||==== ||===  ====  ====  ||     || ||====
+ ---------------------------------------------------
+      A I   O R C H E S T R A T O R   C O R E`}
+              </pre>
+            </div>
+          );
+        }
+
+        setBootLogs(prev => [...prev, { id: currentIndex, time: timeStr, text: content }]);
+        currentIndex++;
+        processNextLog();
+      }, step.delay);
+    };
+
+    processNextLog();
+    return () => { isMounted = false; };
+  }, [onComplete]);
+
+  return (
+    <div className="flex h-screen w-full bg-[#1e2029] text-neutral-300 font-mono overflow-hidden relative selection:bg-white/20">
+      <div 
+        className="absolute right-0 top-0 w-3/4 h-full pointer-events-none opacity-[0.08]"
+        style={{
+          backgroundImage: 'linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)',
+          backgroundSize: '100px 100px',
+          maskImage: 'linear-gradient(to right, transparent, black 60%)',
+          WebkitMaskImage: 'linear-gradient(to right, transparent, black 60%)'
+        }}
+      />
+
+      <div className="absolute top-6 left-6 flex items-center gap-2 font-bold text-white z-20">
+        <Server size={18} className="text-indigo-400" />
+        <span>AI Orchestrator Engine</span>
+      </div>
+
+      <div className="relative z-10 p-8 pt-24 flex flex-col gap-3 w-full h-full overflow-y-auto custom-scrollbar">
+        {bootLogs.map((log) => (
+          <div key={log.id} className="flex gap-4 items-start uppercase text-[13px] tracking-wide animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <span className="text-neutral-500 shrink-0 w-20">{log.time}</span>
+            <span className="text-neutral-100 font-medium">{log.text}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="absolute bottom-8 right-10 z-20 flex items-center gap-3">
+        <div className="w-4 h-4 rounded-full border-[2px] border-neutral-500 border-t-indigo-400 animate-spin" />
+        <span className="tracking-[0.15em] uppercase text-xs font-bold text-neutral-300">Application Loading</span>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
+// --- MAIN DEFAULT ENTRY COMPONENT (COMPLIANCE FIX) ---
+// ============================================================================
 export default function App() {
+  const [isBooted, setIsBooted] = useState(false);
   const [prompt, setPrompt] = useState<string>(TEST_BENCHMARKS[0].prompt);
-  const [activeTab, setActiveTab] = useState<string>('handbook'); // Default to beautiful guide/handbook
+  const [activeTab, setActiveTab] = useState<string>('handbook');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   
-  // High UX customization configurations
   const [config, setConfig] = useState<ConfigState>({
     maxRetries: 3,
     strictValidation: true,
-    dialect: 'PostgreSQL', // PostgreSQL, MongoDB, SQLite, MySQL
-    architecture: 'Serverless', // Serverless, Microservices, Monolithic, Event-Driven
+    dialect: 'PostgreSQL',
+    architecture: 'Serverless',
     provider: 'Gemini 2.5 Flash',
-    faultLevel: 'none', // none, mild, relational, severe
+    faultLevel: 'none',
     simCostMultiplier: 1.0
   });
 
-  // Server state simulator
   const [virtualJob, setVirtualJob] = useState<any | null>(null);
   const [ssePackets, setSsePackets] = useState<SsePacket[]>([]);
   const [evaluatedResults, setEvaluatedResults] = useState<EvaluatedResult[]>([]);
@@ -1055,6 +1106,7 @@ export default function App() {
   });
 
   const logsEndRef = useRef<HTMLDivElement | null>(null);
+  const resultsViewRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -1080,7 +1132,6 @@ export default function App() {
     addLog(`Switched target workspace prompt template`, 'info');
   };
 
-  // Stepper state for interactive handbook guide
   const [handbookStep, setHandbookStep] = useState<number>(0);
   const handbookSteps = [
     {
@@ -1128,7 +1179,12 @@ export default function App() {
         results: { intent: null, schema: null, spec: null }
       }));
       setVirtualJob({ jobId, status: 'processing', progress: 10 });
-      setActiveTab('intent'); // JUMP DIRECTLY TO STAGE 1 INTENT TAB IMMEDIATELY ON CLICK!
+      setActiveTab('intent');
+
+      // Scroll smoothly down to the tab layout visualizer so results are immediately in view
+      setTimeout(() => {
+        resultsViewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
     }
 
     const dispatchLocalLog = (msg: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
@@ -1139,9 +1195,6 @@ export default function App() {
       dispatchLocalLog(`Initiating multi-stage pipeline on Job target: ${jobId}`);
       emitSsePacket("stage_start", { stage: "Stage 1: Intent Extraction", jobId, progress: 15 });
       
-      // ----------------------------------------------------
-      // STAGE 1: INTENT EXTRACTION
-      // ----------------------------------------------------
       dispatchLocalLog("[Stage 1] Parsing prompt semantics and identifying target hooks...");
       const stage1Raw = await runSimulationGeneration(inputPrompt, 1, null, config);
       
@@ -1169,13 +1222,10 @@ export default function App() {
         setState(prev => ({ ...prev, results: { ...prev.results, intent: parsedIntent } }));
         setVirtualJob((prev: any) => prev ? { ...prev, progress: 35 } : { jobId, status: 'processing', progress: 35 });
         
-        await new Promise(r => setTimeout(r, 2000)); // ⏳ PAUSE FOR 2 SECONDS TO LET USER READ STAGE 1 DATA
-        setActiveTab('schema'); // AUTO-PROGRESS TO DATABASE SCHEMA STAGE 2
+        await new Promise(r => setTimeout(r, 1000));
+        setActiveTab('schema');
       }
 
-      // ----------------------------------------------------
-      // STAGE 2: DATABASE SCHEMA GENERATION
-      // ----------------------------------------------------
       dispatchLocalLog("[Stage 2] Generating relational database blueprint...", "warning");
       emitSsePacket("stage_start", { stage: "Stage 2: Schema Generation", jobId, progress: 40 });
       let rawSchema = await runSimulationGeneration(inputPrompt, 2, currentResults, config);
@@ -1188,7 +1238,6 @@ export default function App() {
         if (!valReport2.isValid) {
           dispatchLocalLog("[Stage 2 Validator] Relational structure checks failed! Initiating multi-tier repairs...", "warning");
           
-          // Tier 1: Field Repair
           const fieldRep = repairEngine.attemptFieldRepair('Stage 2', parsedSchema, valReport2.errors);
           parsedSchema = fieldRep.updated;
           fieldRep.logs.forEach(msg => {
@@ -1196,7 +1245,6 @@ export default function App() {
             tempRepairLogs.push({ stage: "Stage 2", strategy: "Field Repair", message: msg });
           });
 
-          // Tier 2: Consistency Repair
           const consistRep = repairEngine.attemptConsistencyRepair('Stage 2', parsedSchema, valReport2.errors);
           parsedSchema = consistRep.updated;
           consistRep.logs.forEach(msg => {
@@ -1219,13 +1267,10 @@ export default function App() {
         setState(prev => ({ ...prev, results: { ...prev.results, schema: parsedSchema } }));
         setVirtualJob((prev: any) => prev ? { ...prev, progress: 70 } : { jobId, status: 'processing', progress: 70 });
         
-        await new Promise(r => setTimeout(r, 2000)); // ⏳ PAUSE FOR 2 SECONDS TO LET USER READ STAGE 2 SCHEMA
-        setActiveTab('sandbox'); // AUTO-PROGRESS TO STAGE 3 MOCK SANDBOX BLUEPRINT
+        await new Promise(r => setTimeout(r, 1000));
+        setActiveTab('sandbox');
       }
 
-      // ----------------------------------------------------
-      // STAGE 3: APPLICATION SPECIFICATION
-      // ----------------------------------------------------
       dispatchLocalLog("[Stage 3] Compiling interactive application specification...", "warning");
       emitSsePacket("stage_start", { stage: "Stage 3: App Spec Generation", jobId, progress: 85 });
       let rawSpec = await runSimulationGeneration(inputPrompt, 3, currentResults, config);
@@ -1303,6 +1348,12 @@ export default function App() {
   const runEvaluationSuite = async () => {
     setIsEvaluating(true);
     setActiveTab('evaluation');
+
+    // Scroll smoothly down to the evaluation suite container
+    setTimeout(() => {
+      resultsViewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+
     const logs: EvaluatedResult[] = [];
 
     for (let index = 0; index < TEST_BENCHMARKS.length; index++) {
@@ -1337,6 +1388,14 @@ export default function App() {
     }
     setIsEvaluating(false);
   };
+
+  const handleReset = () => {
+    setIsBooted(false);
+  };
+
+  if (!isBooted) {
+    return <BootScreen onComplete={() => setIsBooted(true)} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#07090e] text-slate-300 font-sans flex flex-col lg:flex-row overflow-x-hidden selection:bg-indigo-500/30">
@@ -1487,6 +1546,17 @@ export default function App() {
                 className="w-full accent-indigo-500 bg-slate-800 rounded-lg h-1.5 cursor-pointer"
                 disabled={state.status === 'running'}
               />
+            </div>
+
+            {/* Restart Sequence */}
+            <div className="pt-2">
+              <button
+                onClick={handleReset}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-neutral-900 border border-neutral-800 hover:border-neutral-700 hover:bg-neutral-800 transition-colors text-xs text-neutral-300 font-bold"
+              >
+                <RefreshCw size={13} />
+                <span>Restart Boot Sequence</span>
+              </button>
             </div>
 
           </div>
@@ -1645,7 +1715,7 @@ export default function App() {
           </div>
 
           {/* Right Panel: Output Tabs Terminal / Log Desk */}
-          <div className="xl:col-span-7 flex flex-col bg-[#0b0f19] rounded-xl border border-slate-900 shadow-xl overflow-hidden min-h-[450px] lg:min-h-0">
+          <div ref={resultsViewRef} className="xl:col-span-7 flex flex-col bg-[#0b0f19] rounded-xl border border-slate-900 shadow-xl overflow-hidden min-h-[450px] lg:min-h-0">
             
             {/* Responsive Tab Panel */}
             <div className="flex items-center justify-between pr-4 bg-[#0b0f19] border-b border-slate-900 overflow-x-auto scrollbar-none">
@@ -2254,7 +2324,6 @@ const EvaluationScoreboard: React.FC<EvaluationScoreboardProps> = ({ results, be
   </div>
 );
 
-// --- Auxiliary Layout Elements ---
 interface MetricCardProps {
   icon: React.ReactNode;
   label: string;
